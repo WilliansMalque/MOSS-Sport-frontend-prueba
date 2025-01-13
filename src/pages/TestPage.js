@@ -1,85 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import { Grid, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography, CircularProgress } from "@mui/material";
 
-const AdminDashboard = () => {
-  const [jugadores, setJugadores] = useState([]);
-  const [equipoSeleccionado, setEquipoSeleccionado] = useState(null);
+const CategoriasTorneosEquipos = () => {
+  const [data, setData] = useState([]);
+  const [selectedCategoria, setSelectedCategoria] = useState(null);
+  const [selectedTorneo, setSelectedTorneo] = useState(null);
+  const [filteredTorneos, setFilteredTorneos] = useState([]);
+  const [filteredEquipos, setFilteredEquipos] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Función para obtener los jugadores del equipo seleccionado
-  const handleVerJugadores = async (equipoId) => {
-    console.log('ID del equipo seleccionado al intentar ver jugadores:', equipoId);  // Verifica que equipoId esté llegando bien
-    
-    try {
-      // Realizar la solicitud al backend para obtener todos los jugadores
-      const response = await axios.get('http://localhost:5000/api/jugadores');
-      console.log('Respuesta de jugadores:', response.data);
-      
-      // Filtrar los jugadores por equipo_id
-      const jugadoresEquipo = response.data.filter(jugador => jugador.equipo_id === equipoId);
-      console.log('Jugadores filtrados:', jugadoresEquipo);
-      
-      // Si no hay jugadores, mostrar mensaje en la consola
-      if (jugadoresEquipo.length === 0) {
-        console.log('No se encontraron jugadores para este equipo');
-      }
-  
-      // Actualizar el estado con los jugadores filtrados
-      setJugadores(jugadoresEquipo);
-    } catch (error) {
-      console.error('Error al obtener los jugadores:', error);
-    }
-  };
-
-  // Función para seleccionar el equipo y abrir el formulario
-  const handleAbrirFormulario = (equipo) => {
-    console.log('Equipo seleccionado al abrir el formulario:', equipo);  // Log para ver qué equipo se selecciona
-    setEquipoSeleccionado(equipo);  // Establecer el equipo seleccionado
-  };
-
-  // Función para obtener los equipos (esto puede venir de un useEffect o ser cargado desde una API)
-  const obtenerEquipos = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/equipos/categorias');
-      console.log('Equipos obtenidos:', response.data);
-      // Asegúrate de manejar la respuesta para setear los equipos correctamente
-    } catch (error) {
-      console.error('Error al obtener equipos:', error);
-    }
-  };
-
+  // Log de los datos cuando se cargan desde el API
   useEffect(() => {
-    obtenerEquipos();  // Obtener equipos al cargar el componente
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("http://localhost:5000/api/categorias/categorias-torneos-equipos");
+        const result = await response.json();
+        console.log("Datos recibidos desde el servidor:", result); // Log de los datos recibidos
+        setData(result);
+      } catch (error) {
+        console.error("Error al cargar los datos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
+  // Filtrar las categorías
+  const categorias = [...new Set(data.map(item => item.categoria))];
+  console.log("Categorías disponibles:", categorias); // Log de las categorías disponibles
+
+  // Filtrar los torneos de la categoría seleccionada sin duplicados
+  useEffect(() => {
+    if (selectedCategoria) {
+      console.log("Categoría seleccionada:", selectedCategoria); // Log de la categoría seleccionada
+      const torneos = data
+        .filter(item => item.categoria === selectedCategoria)
+        .reduce((acc, item) => {
+          if (!acc.some(torneo => torneo.torneo === item.torneo)) {
+            acc.push(item);
+          }
+          return acc;
+        }, []);
+      console.log("Torneos filtrados para la categoría:", torneos); // Log de los torneos filtrados
+      setFilteredTorneos(torneos);
+      setSelectedTorneo(null); // Reseteamos el torneo cuando se cambia la categoría
+      setFilteredEquipos([]);
+    }
+  }, [selectedCategoria, data]);
+
+  // Filtrar los equipos del torneo seleccionado
+  useEffect(() => {
+    if (selectedTorneo) {
+      console.log("Torneo seleccionado:", selectedTorneo); // Log del torneo seleccionado
+      const equipos = data.filter(item => item.torneo === selectedTorneo && item.categoria === selectedCategoria);
+      console.log("Equipos filtrados para el torneo:", equipos); // Log de los equipos filtrados
+      setFilteredEquipos(equipos);
+    }
+  }, [selectedTorneo, selectedCategoria, data]);
+
+  // Navegar hacia atrás
+  const handleGoBackToCategorias = () => {
+    setSelectedCategoria(null);
+    setSelectedTorneo(null);
+    setFilteredTorneos([]);
+    setFilteredEquipos([]);
+  };
+
+  const handleGoBackToTorneos = () => {
+    setSelectedTorneo(null);
+    setFilteredEquipos([]);
+  };
+
   return (
-    <div>
-      <h1>Admin Dashboard</h1>
-      {/* Renderiza los equipos y permite seleccionar uno */}
-      <button onClick={() => handleAbrirFormulario({ equipo_id: 154, equipo_nombre: 'equipo5' })}>
-        Ver Jugadores de equipo5
-      </button>
+    <Grid container spacing={3} style={{ padding: '20px' }}>
+      {/* Mostrar categorías */}
+      {!selectedCategoria && !loading && (
+        <>
+          <Typography variant="h5" style={{ marginBottom: '20px' }}>
+            Selecciona una categoría
+          </Typography>
+          {categorias.map((categoria, index) => (
+            <Grid item xs={12} sm={6} md={4} key={`categoria-${categoria}-${index}`}>
+              <Button 
+                variant="contained" 
+                onClick={() => setSelectedCategoria(categoria)} 
+                fullWidth 
+                style={{ padding: '20px', fontSize: '16px' }}
+              >
+                {categoria}
+              </Button>
+            </Grid>
+          ))}
+        </>
+      )}
 
-      {/* Ver los jugadores del equipo seleccionado */}
-      <button onClick={() => equipoSeleccionado && handleVerJugadores(equipoSeleccionado.equipo_id)}>
-        Ver Jugadores
-      </button>
+      {/* Mostrar torneos de la categoría seleccionada */}
+      {selectedCategoria && !selectedTorneo && !loading && (
+        <>
+          <Typography variant="h5" style={{ marginBottom: '20px' }}>
+            Torneos de la categoría: {selectedCategoria}
+          </Typography>
+          {filteredTorneos.map((torneo, index) => (
+            <Grid item xs={12} sm={6} md={4} key={`torneo-${torneo.torneo_id}-${index}`}>
+              <Button 
+                variant="outlined" 
+                onClick={() => setSelectedTorneo(torneo.torneo)} 
+                fullWidth 
+                style={{ padding: '20px', fontSize: '16px' }}
+              >
+                {torneo.torneo}
+              </Button>
+            </Grid>
+          ))}
+        </>
+      )}
 
-      {/* Mostrar la lista de jugadores */}
-      <div>
-        {jugadores.length === 0 ? (
-          <p>No se encontraron jugadores para este equipo.</p>
-        ) : (
-          <ul>
-            {jugadores.map((jugador) => (
-              <li key={jugador.id}>
-                {jugador.nombre} - {jugador.posicion}
-              </li>
-            ))}
-          </ul>
+      {/* Mostrar equipos del torneo seleccionado */}
+      {selectedTorneo && filteredEquipos.length > 0 && (
+        <Grid item xs={12}>
+          <Typography variant="h5" style={{ marginBottom: '20px' }}>
+            Equipos inscritos en {selectedTorneo} - {selectedCategoria}
+          </Typography>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Equipo</TableCell>
+                  <TableCell>Capitán</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredEquipos.map((equipo, index) => (
+                  <TableRow key={`equipo-${equipo.equipo_id}-${index}`}>
+                    <TableCell>{equipo.equipo}</TableCell>
+                    <TableCell>{equipo.capitan}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Grid>
+      )}
+
+      {/* Cargando spinner mientras los datos se cargan */}
+      {loading && (
+        <Grid item xs={12}>
+          <CircularProgress />
+        </Grid>
+      )}
+
+      {/* Botones de navegación */}
+      <Grid item xs={12} style={{ marginTop: '20px' }}>
+        {selectedCategoria && !selectedTorneo && (
+          <Button 
+            variant="contained" 
+            onClick={handleGoBackToCategorias} 
+            fullWidth 
+            style={{ padding: '10px', fontSize: '16px' }}
+          >
+            Volver a Categorías
+          </Button>
         )}
-      </div>
-    </div>
+        {selectedTorneo && (
+          <Button 
+            variant="contained" 
+            onClick={handleGoBackToTorneos} 
+            fullWidth 
+            style={{ padding: '10px', fontSize: '16px' }}
+          >
+            Volver a Torneos
+          </Button>
+        )}
+      </Grid>
+    </Grid>
   );
 };
 
-export default AdminDashboard;
+export default CategoriasTorneosEquipos;
