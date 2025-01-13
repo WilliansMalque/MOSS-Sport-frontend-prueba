@@ -10,6 +10,7 @@
     "axios": "^1.7.9",
     "cra-template": "1.2.0",
     "date-fns": "^4.1.0",
+    "moment": "^2.30.1",
     "moss-sport-frontend": "file:",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

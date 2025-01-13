@@ -1,110 +1,234 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogActions, DialogContent, DialogTitle, TextField, Button, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Button, Checkbox, FormControlLabel, TextField } from '@mui/material';
 import axios from 'axios';
 
-const AgregarEquipoDialog = ({ open, onClose, nuevoEquipo, setNuevoEquipo, onAgregarEquipo }) => {
-  const [torneos, setTorneos] = useState([]);
+const AgregarEquipoDialog = ({ open, onClose, setNuevoEquipo, onAgregarEquipo }) => {
+  const [categorias, setCategorias] = useState([]);
+  const [torneosFiltrados, setTorneosFiltrados] = useState([]);
+  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState([]);
+  const [torneosSeleccionados, setTorneosSeleccionados] = useState([]);
+  const [formData, setFormData] = useState({
+    nombreEquipo: '',
+    email: '',
+  });
 
+  // Cargar categorías y torneos
   useEffect(() => {
-    const fetchTorneos = async () => {
+    const fetchCategorias = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/torneos');
-        const torneosPendientes = response.data.filter(torneo => torneo.estado === 'pendiente');
-        setTorneos(torneosPendientes);
+        const response = await axios.get('http://localhost:5000/api/categorias/categorias-torneos');
+        console.log('Datos recibidos desde el backend (categorías y torneos):', response.data);
+
+        const categoriasConTorneos = response.data.reduce((acc, item) => {
+          const categoriaExistente = acc.find((cat) => cat.categoria_id === item.categoria_id);
+          if (categoriaExistente) {
+            categoriaExistente.torneos.push({
+              torneo_id: item.torneo_id,
+              torneo_nombre: item.torneo_nombre,
+              categoria_nombre: item.categoria_nombre,
+            });
+          } else {
+            acc.push({
+              categoria_id: item.categoria_id,
+              categoria_nombre: item.categoria_nombre,
+              torneos: [
+                {
+                  torneo_id: item.torneo_id,
+                  torneo_nombre: item.torneo_nombre,
+                  categoria_nombre: item.categoria_nombre,
+                },
+              ],
+            });
+          }
+          return acc;
+        }, []);
+
+        setCategorias(categoriasConTorneos);
       } catch (error) {
-        console.error('Error al obtener los torneos:', error);
+        console.error('Error al cargar las categorías:', error);
       }
     };
-    fetchTorneos();
+
+    fetchCategorias();
   }, []);
 
+  // Manejar cambios en el formulario
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNuevoEquipo((prev) => ({
-      ...prev,
+    setFormData({
+      ...formData,
       [name]: value,
-    }));
+    });
   };
 
+  // Manejar selección de categorías
+  const handleCategoriaChange = (e) => {
+    const categoriaId = e.target.value;
+    setCategoriasSeleccionadas((prev) =>
+      prev.includes(categoriaId)
+        ? prev.filter((item) => item !== categoriaId)
+        : [...prev, categoriaId]
+    );
+  };
+
+  // Manejar la actualización de los torneos filtrados
+  useEffect(() => {
+    const torneosDeCategoriasSeleccionadas = categorias
+      .filter((cat) => categoriasSeleccionadas.includes(cat.categoria_id.toString()))
+      .flatMap((cat) => cat.torneos);
+
+    setTorneosFiltrados(torneosDeCategoriasSeleccionadas);
+  }, [categoriasSeleccionadas, categorias]);
+
+  // Manejar selección de torneos
   const handleTorneoChange = (e) => {
-    const { value } = e.target;
-    setNuevoEquipo((prev) => ({
-      ...prev,
-      nombre_torneo: value,
-    }));
+    const torneoId = e.target.value;
+    setTorneosSeleccionados((prev) =>
+      prev.includes(torneoId)
+        ? prev.filter((item) => item !== torneoId)
+        : [...prev, torneoId]
+    );
   };
 
-  const handleAgregarEquipo = async () => {
-    if (!nuevoEquipo.nombre || !nuevoEquipo.email_capitan || !nuevoEquipo.nombre_torneo) {
-      alert('Por favor complete todos los campos.');
-      return;
-    }
+  // Manejar el envío del formulario
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Preparar datos para enviar
+    const equiposData = {
+      nombre: formData.nombreEquipo,
+      email_capitan: formData.email,
+      torneos: torneosSeleccionados.map((torneoId) => {
+        return categorias
+          .filter((cat) => categoriasSeleccionadas.includes(cat.categoria_id.toString()))
+          .flatMap((cat) => {
+            return cat.torneos
+              .filter((torneo) => torneo.torneo_id.toString() === torneoId)
+              .map((torneo) => ({
+                torneo_id: torneo.torneo_id,
+                categoria_id: cat.categoria_id,
+              }));
+          });
+      }).flat(),
+    };
 
     try {
-      await axios.post('http://localhost:5000/api/equipos', {
-        nombre: nuevoEquipo.nombre,
-        email_capitan: nuevoEquipo.email_capitan,
-        nombre_torneo: nuevoEquipo.nombre_torneo
-      });
-      onAgregarEquipo();
-      onClose();
+      const response = await axios.post('http://localhost:5000/api/equipos', equiposData);
+      console.log('Equipo agregado con éxito:', response.data);
+      onClose(); // Cerrar el diálogo después de enviar el formulario
+      setFormData({ nombreEquipo: '', email: '' }); // Limpiar el formulario
+      setCategoriasSeleccionadas([]);
+      setTorneosSeleccionados([]);
     } catch (error) {
-      console.error('Error al agregar equipo:', error);
+      console.error('Error al agregar el equipo:', error);
     }
   };
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Agregar Nuevo Equipo</DialogTitle>
-      <DialogContent>
-        <TextField
-          autoFocus
-          margin="dense"
-          label="Nombre del equipo"
-          type="text"
-          fullWidth
-          variant="outlined"
-          name="nombre"
-          value={nuevoEquipo.nombre}
-          onChange={handleInputChange}
-        />
-        <TextField
-          margin="dense"
-          label="Email del Capitán"
-          type="email"
-          fullWidth
-          variant="outlined"
-          name="email_capitan"
-          value={nuevoEquipo.email_capitan}
-          onChange={handleInputChange}
-        />
-        
-        {/* Selección del torneo pendiente */}
-        <FormControl fullWidth margin="normal">
-          <InputLabel>Seleccionar Torneo</InputLabel>
-          <Select
-            value={nuevoEquipo.nombre_torneo || ''}
-            onChange={handleTorneoChange}
-            name="nombre_torneo"
-            label="Seleccionar Torneo"
-          >
-            {torneos.map((torneo) => (
-              <MenuItem key={torneo.id} value={torneo.nombre}>
-                {torneo.nombre} - {torneo.lugar} ({torneo.fecha_inicio.split("T")[0]} a {torneo.fecha_fin.split("T")[0]})
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </DialogContent>
+  <DialogTitle>Agregar Equipo</DialogTitle>
+  <DialogContent>
+    <form onSubmit={handleSubmit}>
+      <TextField
+        label="Nombre del Equipo"
+        name="nombreEquipo"
+        value={formData.nombreEquipo}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+        required
+      />
+      <TextField
+        label="Email del Capitán"
+        name="email"
+        value={formData.email}
+        onChange={handleInputChange}
+        type="email"
+        fullWidth
+        margin="normal"
+        required
+      />
+
+      <div>
+        <h4>Categorías</h4>
+        <Button
+          onClick={() => {
+            const allCategoriaIds = categorias.map((cat) => cat.categoria_id.toString());
+            setCategoriasSeleccionadas(allCategoriaIds); // Seleccionar todas las categorías
+          }}
+        >
+          Seleccionar Todo
+        </Button>
+        <Button
+          onClick={() => {
+            setCategoriasSeleccionadas([]); // Deseleccionar todas las categorías
+          }}
+        >
+          Deseleccionar Todo
+        </Button>
+        {categorias.map((cat) => (
+          <FormControlLabel
+            key={cat.categoria_id}
+            control={
+              <Checkbox
+                value={cat.categoria_id}
+                onChange={handleCategoriaChange}
+                checked={categoriasSeleccionadas.includes(cat.categoria_id.toString())}
+              />
+            }
+            label={cat.categoria_nombre}
+          />
+        ))}
+      </div>
+
+      <div>
+        <h4>Torneos</h4>
+        <Button
+          onClick={() => {
+            const allTorneoIds = torneosFiltrados.map((torneo) => torneo.torneo_id.toString());
+            setTorneosSeleccionados(allTorneoIds); // Seleccionar todos los torneos
+          }}
+        >
+          Seleccionar Todo
+        </Button>
+        <Button
+          onClick={() => {
+            setTorneosSeleccionados([]); // Deseleccionar todos los torneos
+          }}
+        >
+          Deseleccionar Todo
+        </Button>
+        {torneosFiltrados.length > 0 ? (
+          torneosFiltrados.map((torneo) => (
+            <FormControlLabel
+              key={torneo.torneo_id}
+              control={
+                <Checkbox
+                  value={torneo.torneo_id}
+                  onChange={handleTorneoChange}
+                  checked={torneosSeleccionados.includes(torneo.torneo_id.toString())}
+                />
+              }
+              label={`${torneo.torneo_nombre} - ${torneo.categoria_nombre}`}
+            />
+          ))
+        ) : (
+          <p>No hay torneos disponibles para las categorías seleccionadas.</p>
+        )}
+      </div>
+
       <DialogActions>
-        <Button onClick={onClose} color="primary">
+        <Button onClick={onClose} color="secondary">
           Cancelar
         </Button>
-        <Button onClick={handleAgregarEquipo} color="primary">
-          Agregar
+        <Button type="submit" color="primary">
+          Agregar Equipo
         </Button>
       </DialogActions>
-    </Dialog>
+    </form>
+  </DialogContent>
+</Dialog>
+
   );
 };
 

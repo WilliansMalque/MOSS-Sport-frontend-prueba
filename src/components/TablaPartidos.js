@@ -1,24 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Table, TableContainer, TableHead, TableRow, TableCell, TableBody, Paper } from '@mui/material';
 
 const TablaPartidos = ({ titulo, partidos, equipos, torneos, onIniciarPartido, onFinalizarPartido, onEditarPartido, onEliminarPartido }) => {
+  const [categoriasEquipos, setCategoriasEquipos] = useState([]);
 
-  const getEquipoNombre = (id) => {
-    const equipo = equipos.find((equipo) => equipo.equipo_id === id);
-    return equipo ? equipo.nombre_equipo : 'Desconocido'; 
+  // Función para obtener las categorías y equipos de la API
+  useEffect(() => {
+    fetch('http://localhost:5000/api/categorias/categorias-torneos-equipos')
+      .then((response) => response.json())
+      .then((data) => {
+        console.log('Categorías y equipos obtenidos:', data);
+        setCategoriasEquipos(data);
+      })
+      .catch((error) => console.error('Error al obtener categorías y equipos:', error));
+  }, []);
+
+  // Función para obtener el nombre del equipo junto con su categoría
+  const getEquipoNombreConCategoria = (id) => {
+    const equipoCategoria = categoriasEquipos.find((item) => item.equipo_id === id);
+    if (equipoCategoria) {
+      return `${equipoCategoria.equipo} - ${equipoCategoria.categoria}`;
+    }
+    return 'Desconocido';
   };
 
   const getTorneoNombre = (id) => {
-  if (!torneos || torneos.length === 0) {
-    console.log('No hay torneos disponibles');
-    return 'Desconocido'; // Retornar "Desconocido" si la lista de torneos está vacía o no está definida
-  }
-  const torneo = torneos.find((torneo) => torneo.id === id);
-  return torneo ? torneo.nombre : 'Desconocido'; // Usamos "nombre" para acceder al nombre del torneo
-};
-
-  
-  
+    if (!torneos || torneos.length === 0) {
+      console.log('No hay torneos disponibles');
+      return 'Desconocido';
+    }
+    const torneo = torneos.find((torneo) => torneo.id === id);
+    return torneo ? torneo.nombre : 'Desconocido';
+  };
 
   return (
     <Box sx={{ marginBottom: 3 }}>
@@ -32,7 +45,6 @@ const TablaPartidos = ({ titulo, partidos, equipos, torneos, onIniciarPartido, o
           <Table>
             <TableHead>
               <TableRow>
-                
                 <TableCell>Equipo Local</TableCell>
                 <TableCell>Equipo Visitante</TableCell>
                 <TableCell>Fecha y Hora</TableCell>
@@ -56,9 +68,8 @@ const TablaPartidos = ({ titulo, partidos, equipos, torneos, onIniciarPartido, o
             <TableBody>
               {partidos.map((partido) => (
                 <TableRow key={partido.id}>
-                  
-                  <TableCell>{getEquipoNombre(partido.equipo_local_id)}</TableCell>
-                  <TableCell>{getEquipoNombre(partido.equipo_visitante_id)}</TableCell>
+                  <TableCell>{getEquipoNombreConCategoria(partido.equipo_local_id)}</TableCell>
+                  <TableCell>{getEquipoNombreConCategoria(partido.equipo_visitante_id)}</TableCell>
                   <TableCell>{new Date(partido.fecha_hora).toLocaleString()}</TableCell>
                   <TableCell>{partido.lugar}</TableCell>
                   {titulo === 'Partidos Finalizados' && (

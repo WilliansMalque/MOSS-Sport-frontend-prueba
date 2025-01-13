@@ -11,6 +11,8 @@ import Estadisticas from './pages/Estadisticas';
 import TestPage from './pages/TestPage';
 import TestPage2 from './pages/TestPage2';
 import RegisterPageUser from './pages/RegisterPageUser';
+import SeleccionarTorneosYCategorias from './pages/SeleccionarTorneosYCategorias';
+
 
 const App = () => {
   return (
@@ -28,6 +30,7 @@ const App = () => {
         <Route path="/user-dashboard" element={<UserDashboard />} />
         <Route path="/torneos" element={<TournamentListPage />} /> 
         <Route path="dashboard" element={<Estadisticas />} />
+        <Route path="/seleccionar-torneos-y-categorias" element={<SeleccionarTorneosYCategorias />} />
       </Routes>
     </Router>
   );

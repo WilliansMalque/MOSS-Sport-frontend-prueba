@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogActions, DialogContent, DialogTitle, TextField, Button, Snackbar } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle, TextField, Button, Snackbar, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
 import axios from 'axios';
 
 const EditarTorneoModal = ({ open, onClose, torneoId, onUpdate }) => {
@@ -10,34 +10,85 @@ const EditarTorneoModal = ({ open, onClose, torneoId, onUpdate }) => {
     fecha_fin: '',
     lugar: '',
     estado: '',
-    max_equipos: '',
-    min_equipos: '',
     reglas: '',
+    categorias: [], // Array para categorías seleccionadas, nunca null
   });
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [allCategorias, setAllCategorias] = useState([]); // Todas las categorías
+  const [isLoadingCategorias, setIsLoadingCategorias] = useState(false); // Estado de carga de categorías
 
-  // Cargar los datos del torneo cuando el modal se abre
   useEffect(() => {
     if (open && torneoId) {
       setLoading(true);
       axios.get(`http://localhost:5000/api/torneos/${torneoId}`)
         .then(response => {
-          setTorneo(response.data);
+          const torneoData = response.data;
+
+          // Asegurarse de que las categorías no sean null ni undefined
+          const categoriasSeleccionadas = Array.isArray(torneoData.categorias)
+            ? torneoData.categorias
+            : torneoData.categorias ? torneoData.categorias.split(',').map(categoria => categoria.trim()) : [];
+
+          setTorneo({
+            ...torneoData,
+            categorias: categoriasSeleccionadas,
+          });
+
           setLoading(false);
         })
-        .catch(err => {
+        .catch((error) => {
           setError('Hubo un error al cargar los datos del torneo.');
+          console.error(error);
           setLoading(false);
         });
     }
   }, [open, torneoId]);
 
+  useEffect(() => {
+    setIsLoadingCategorias(true);
+    axios.get('http://localhost:5000/api/categorias/categorias')
+      .then(response => {
+        setAllCategorias(response.data);
+        setIsLoadingCategorias(false);
+      })
+      .catch((error) => {
+        setError('Hubo un error al cargar las categorías.');
+        setIsLoadingCategorias(false);
+      });
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setTorneo({ ...torneo, [name]: value });
+  };
+
+  const handleCategoriaClick = (categoria) => {
+    setTorneo(prevTorneo => {
+      const categorias = [...prevTorneo.categorias];
+      const categoriaIndex = categorias.indexOf(categoria);
+      
+      if (categoriaIndex === -1) {
+        categorias.push(categoria); // Agregar si no está seleccionada
+      } else {
+        categorias.splice(categoriaIndex, 1); // Eliminar si ya está seleccionada
+      }
+      
+      return { ...prevTorneo, categorias };
+    });
+  };
+
+  const handleSelectAllCategories = () => {
+    setTorneo(prevTorneo => ({
+      ...prevTorneo,
+      categorias: allCategorias.map(categoria => categoria.nombre),
+    }));
+  };
+
+  const handleClearAllCategories = () => {
+    setTorneo(prevTorneo => ({ ...prevTorneo, categorias: [] }));
   };
 
   const handleUpdateTorneo = async () => {
@@ -45,36 +96,32 @@ const EditarTorneoModal = ({ open, onClose, torneoId, onUpdate }) => {
     setError('');
     setSuccess('');
 
-    // Validar que los campos no estén vacíos o con valores incorrectos
-    if (
-      !torneo.nombre ||
-      !torneo.tipo ||
-      !torneo.fecha_inicio ||
-      !torneo.fecha_fin ||
-      !torneo.lugar ||
-      !torneo.estado ||
-      !torneo.max_equipos ||
-      !torneo.min_equipos ||
-      !torneo.reglas
-    ) {
+    const {
+      nombre,
+      tipo,
+      fecha_inicio,
+      fecha_fin,
+      lugar,
+      estado,
+      reglas,
+      categorias,
+    } = torneo;
+
+    // Validación ajustada
+    if (!nombre || !tipo || !fecha_inicio || !fecha_fin || !lugar || !estado || !reglas) {
       setLoading(false);
       setError('Por favor, complete todos los campos.');
       return;
     }
 
-    // Validar que la fecha de inicio no sea posterior a la fecha de fin
-    if (torneo.fecha_inicio > torneo.fecha_fin) {
+    if (fecha_inicio > fecha_fin) {
       setLoading(false);
       setError('La fecha de inicio no puede ser posterior a la fecha de fin.');
       return;
     }
 
-    // Validar que max_equipos >= min_equipos
-    if (torneo.max_equipos < torneo.min_equipos) {
-      setLoading(false);
-      setError('El número máximo de equipos debe ser mayor o igual al número mínimo de equipos.');
-      return;
-    }
+    const formattedFechaInicio = fecha_inicio.split('T')[0];
+    const formattedFechaFin = fecha_fin.split('T')[0];
 
     try {
       const token = localStorage.getItem('token');
@@ -84,23 +131,24 @@ const EditarTorneoModal = ({ open, onClose, torneoId, onUpdate }) => {
         return;
       }
 
-      const response = await axios.put(
+      // Asegúrate de que las categorías no sean null, siempre se envía como un array (puede estar vacío)
+      await axios.put(
         `http://localhost:5000/api/torneos/${torneoId}`,
-        torneo,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          ...torneo,
+          categorias: categorias || [],  // Asegura que categorias sea un array vacío si es null
+          fecha_inicio: formattedFechaInicio,
+          fecha_fin: formattedFechaFin,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      // Si la actualización es exitosa, mostramos el mensaje de éxito y cerramos el modal
       setSuccess('Torneo actualizado con éxito.');
-      onUpdate(response.data);  // Llamamos a la función onUpdate pasada por props para actualizar el estado en el componente principal
-      onClose();  // Cerramos el formulario después de actualizar el torneo
-
+      onUpdate(torneoId);
+      onClose();
     } catch (error) {
-      // Si ocurre un error, mostramos el mensaje de error
       setError('Hubo un error al actualizar el torneo. Intenta nuevamente.');
     } finally {
       setLoading(false);
@@ -116,22 +164,8 @@ const EditarTorneoModal = ({ open, onClose, torneoId, onUpdate }) => {
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Editar Torneo</DialogTitle>
       <DialogContent>
-        <TextField
-          label="Nombre"
-          name="nombre"
-          value={torneo.nombre}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-        />
-        <TextField
-          label="Tipo"
-          name="tipo"
-          value={torneo.tipo}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-        />
+        <TextField label="Nombre" name="nombre" value={torneo.nombre} onChange={handleChange} fullWidth margin="normal" />
+        <TextField label="Tipo" name="tipo" value={torneo.tipo} onChange={handleChange} fullWidth margin="normal" />
         <TextField
           label="Fecha de Inicio"
           type="date"
@@ -152,40 +186,49 @@ const EditarTorneoModal = ({ open, onClose, torneoId, onUpdate }) => {
           margin="normal"
           InputLabelProps={{ shrink: true }}
         />
-        <TextField
-          label="Lugar"
-          name="lugar"
-          value={torneo.lugar}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-        />
-        <TextField
-          label="Estado"
-          name="estado"
-          value={torneo.estado}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-        />
-        <TextField
-          label="Máximo de Equipos"
-          name="max_equipos"
-          type="number"
-          value={torneo.max_equipos}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-        />
-        <TextField
-          label="Mínimo de Equipos"
-          name="min_equipos"
-          type="number"
-          value={torneo.min_equipos}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-        />
+        <TextField label="Lugar" name="lugar" value={torneo.lugar} onChange={handleChange} fullWidth margin="normal" />
+        <FormControl fullWidth margin="normal">
+          <InputLabel>Estado</InputLabel>
+          <Select
+            name="estado"
+            value={torneo.estado}
+            onChange={handleChange}
+          >
+            <MenuItem value="pendiente">Pendiente</MenuItem>
+            <MenuItem value="en curso">En curso</MenuItem>
+            <MenuItem value="finalizado">Finalizado</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Botones para categorías */}
+        <div>
+          {isLoadingCategorias ? (
+            <p>Cargando categorías...</p>
+          ) : (
+            <>
+              <Button onClick={handleSelectAllCategories} variant="contained" color="primary" fullWidth>
+                Seleccionar todas las categorías
+              </Button>
+              <Button onClick={handleClearAllCategories} variant="outlined" color="secondary" fullWidth>
+                No asignar ninguna categoría
+              </Button>
+              <div>
+                {allCategorias.map(categoria => (
+                  <Button
+                    key={categoria.id}
+                    onClick={() => handleCategoriaClick(categoria.nombre)}
+                    variant={torneo.categorias.includes(categoria.nombre) ? "contained" : "outlined"}
+                    color={torneo.categorias.includes(categoria.nombre) ? "primary" : "default"}
+                    style={{ margin: '5px' }}
+                  >
+                    {categoria.nombre}
+                  </Button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
         <TextField
           label="Reglas"
           name="reglas"
@@ -198,17 +241,14 @@ const EditarTorneoModal = ({ open, onClose, torneoId, onUpdate }) => {
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="primary">Cancelar</Button>
-        <Button 
-          onClick={handleUpdateTorneo} 
-          color="primary" 
-          disabled={loading}
-        >
+        <Button onClick={onClose} color="primary">
+          Cancelar
+        </Button>
+        <Button onClick={handleUpdateTorneo} color="primary" disabled={loading}>
           {loading ? 'Actualizando...' : 'Actualizar'}
         </Button>
       </DialogActions>
 
-      {/* Mostrar mensaje de éxito o error */}
       <Snackbar
         open={!!error || !!success}
         autoHideDuration={6000}

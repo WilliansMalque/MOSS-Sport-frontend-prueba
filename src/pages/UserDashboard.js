@@ -454,7 +454,7 @@ const UserDashboard = () => {
         <List sx={{ display: 'flex', margin: 0, padding: 0 }}>
           <ListItem
             button
-            onClick={() => handleSectionChange('Estadísticas')}
+            onClick={() => handleSectionChange('Disciplinas')}
             sx={{
               padding: '0 20px',
               color: '#fff',
@@ -485,7 +485,7 @@ const UserDashboard = () => {
             <IconButton sx={{ color: '#FFC107', marginRight: '10px' }}>
               <SportsSoccer />
             </IconButton>
-            <ListItemText primary="Torneos" sx={{ color: '#fff' }} />
+            <ListItemText primary="Disciplinas" sx={{ color: '#fff' }} />
           </ListItem>
           <Divider orientation="vertical" flexItem sx={{ margin: '0 10px', borderColor: '#FFC107' }} />
           <ListItem
@@ -528,10 +528,10 @@ const UserDashboard = () => {
 
       {/* Contenido principal */}
       <Box sx={{ flex: 1, padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
-  {activeSection === 'Estadísticas' && (
+  {activeSection === 'Disiciplinas' && (
     <Box>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-        Torneos y Tabla de Posiciones
+        Disiciplinas y Tabla de Posiciones
       </Typography>
 
       {/* Mostrar la lista de torneos */}
@@ -585,7 +585,7 @@ const UserDashboard = () => {
                 {activeSection === 'Torneos' && (
                   <Box sx={{ padding: 3 }}>
                   <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', color: '#1976d2' }}>
-                    Lista de Torneos
+                    Lista de de Disiciplinas
                   </Typography>
             
                   <Grid container spacing={3}>

@@ -32,8 +32,8 @@ const CrearPartido = ({ open, onClose, onCreate }) => {
           console.error('Error al obtener los partidos', error);
         });
       
-      // Obtener los equipos
-      axios.get('http://localhost:5000/api/equipos')
+      // Obtener los equipos (ahora con categoría y torneo)
+      axios.get('http://localhost:5000/api/categorias/categorias-torneos-equipos')
         .then((response) => {
           setEquipos(response.data);
         })
@@ -51,11 +51,14 @@ const CrearPartido = ({ open, onClose, onCreate }) => {
         });
     }, []);
 
-    // Manejar la selección de un torneo para filtrar equipos
     const handleTorneoChange = (torneoId) => {
+      console.log('Torneo seleccionado:', torneoId);
       setNuevoPartido((prev) => ({ ...prev, torneo_id: torneoId }));
+      
       // Filtrar equipos inscritos en el torneo seleccionado
       const equiposEnTorneo = equipos.filter((equipo) => equipo.torneo_id === parseInt(torneoId));
+      
+      console.log('Equipos filtrados para el torneo:', equiposEnTorneo);
       setEquiposFiltrados(equiposEnTorneo);
     };
 
@@ -85,93 +88,107 @@ const CrearPartido = ({ open, onClose, onCreate }) => {
   return (
     <Modal open={open} onClose={onClose}>
       <Box 
-                sx={{
-                  position: 'absolute', 
-                  top: '50%', 
-                  left: '50%', 
-                  transform: 'translate(-50%, -50%)',
-                  width: 400,
-                  bgcolor: 'background.paper',
-                  p: 4,
-                  borderRadius: 2,
-                }}
-              >
-                <Typography variant="h6" gutterBottom>
-                  Nuevo Partido
-                </Typography>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Torneo</InputLabel>
-                  <Select
-                    value={nuevoPartido.torneo_id}
-                    onChange={(e) => handleTorneoChange(e.target.value)}
-                  >
-                    {torneos.map((torneo) => (
-                      <MenuItem key={torneo.id} value={torneo.id}>
-                        {torneo.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Equipo Local</InputLabel>
-                  <Select
-                    value={nuevoPartido.equipo_local_id}
-                    onChange={(e) => setNuevoPartido((prev) => ({ ...prev, equipo_local_id: e.target.value }))}
-                    disabled={!nuevoPartido.torneo_id}
-                  >
-                    {equiposFiltrados.map((equipo) => (
-                      <MenuItem key={equipo.id} value={equipo.id}>
-                        {equipo.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Equipo Visitante</InputLabel>
-                  <Select
-                    value={nuevoPartido.equipo_visitante_id}
-                    onChange={(e) => setNuevoPartido((prev) => ({ ...prev, equipo_visitante_id: e.target.value }))}
-                    disabled={!nuevoPartido.torneo_id}
-                  >
-                    {equiposFiltrados.map((equipo) => (
-                      <MenuItem key={equipo.id} value={equipo.id}>
-                        {equipo.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <TextField
-                  fullWidth
-                  label="Fecha y Hora"
-                  type="datetime-local"
-                  value={nuevoPartido.fecha_hora}
-                  onChange={(e) => setNuevoPartido((prev) => ({ ...prev, fecha_hora: e.target.value }))}
-                  margin="normal"
-                />
-                <TextField
-                  fullWidth
-                  label="Lugar"
-                  value={nuevoPartido.lugar}
-                  onChange={(e) => setNuevoPartido((prev) => ({ ...prev, lugar: e.target.value }))}
-                  margin="normal"
-                />
-                <TextField
-                  fullWidth
-                  label="Árbitro"
-                  value={nuevoPartido.arbitro}
-                  onChange={(e) => setNuevoPartido((prev) => ({ ...prev, arbitro: e.target.value }))}
-                  margin="normal"
-                />
-                <Button 
-                  variant="contained" 
-                  color="primary" 
-                  onClick={handleAddPartido}
-                  fullWidth
-                  sx={{ marginTop: 2 }}
-                >
-                  Guardar
-                </Button>
-              </Box>
+        sx={{
+          position: 'absolute', 
+          top: '50%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)',
+          width: 400,
+          bgcolor: 'background.paper',
+          p: 4,
+          borderRadius: 2,
+        }}
+      >
+        <Typography variant="h6" gutterBottom>
+          Nuevo Partido
+        </Typography>
+        <FormControl fullWidth margin="normal">
+          <InputLabel>Disciplina</InputLabel>
+          <Select
+            value={nuevoPartido.torneo_id}
+            onChange={(e) => handleTorneoChange(e.target.value)}
+          >
+            {torneos.map((torneo) => (
+              <MenuItem key={torneo.id} value={torneo.id}>
+                {torneo.nombre}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl fullWidth margin="normal">
+  <InputLabel>Equipo Local</InputLabel>
+  <Select
+    value={nuevoPartido.equipo_local_id}
+    onChange={(e) => {
+      console.log('Equipo Local seleccionado:', e.target.value);
+      setNuevoPartido((prev) => ({ ...prev, equipo_local_id: e.target.value }));
+    }} 
+    disabled={!nuevoPartido.torneo_id}
+  >
+    {equiposFiltrados.map((equipo) => {
+      console.log('Equipo a mostrar en el Select:', equipo);
+      return (
+        <MenuItem key={equipo.equipo_id} value={equipo.equipo_id}>
+          {equipo.equipo} - {equipo.categoria}  {/* Mostrar equipo y categoría */}
+        </MenuItem>
+      );
+    })}
+  </Select>
+</FormControl>
+
+<FormControl fullWidth margin="normal">
+  <InputLabel>Equipo Visitante</InputLabel>
+  <Select
+    value={nuevoPartido.equipo_visitante_id}
+    onChange={(e) => {
+      console.log('Equipo Visitante seleccionado:', e.target.value);
+      setNuevoPartido((prev) => ({ ...prev, equipo_visitante_id: e.target.value }));
+    }} 
+    disabled={!nuevoPartido.torneo_id}
+  >
+    {equiposFiltrados.map((equipo) => {
+      console.log('Equipo a mostrar en el Select:', equipo);
+      return (
+        <MenuItem key={equipo.equipo_id} value={equipo.equipo_id}>
+          {equipo.equipo} - {equipo.categoria}  {/* Mostrar equipo y categoría */}
+        </MenuItem>
+      );
+    })}
+  </Select>
+</FormControl>
+
+        <TextField
+          fullWidth
+          label="Fecha y Hora"
+          type="datetime-local"
+          value={nuevoPartido.fecha_hora}
+          onChange={(e) => setNuevoPartido((prev) => ({ ...prev, fecha_hora: e.target.value }))}
+          margin="normal"
+        />
+        <TextField
+          fullWidth
+          label="Lugar"
+          value={nuevoPartido.lugar}
+          onChange={(e) => setNuevoPartido((prev) => ({ ...prev, lugar: e.target.value }))}
+          margin="normal"
+        />
+        <TextField
+          fullWidth
+          label="Árbitro"
+          value={nuevoPartido.arbitro}
+          onChange={(e) => setNuevoPartido((prev) => ({ ...prev, arbitro: e.target.value }))}
+          margin="normal"
+        />
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={handleAddPartido}
+          fullWidth
+          sx={{ marginTop: 2 }}
+        >
+          Guardar
+        </Button>
+      </Box>
     </Modal>
   );
 };

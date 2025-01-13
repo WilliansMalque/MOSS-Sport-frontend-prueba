@@ -21,6 +21,7 @@ import TablaPartidos from '../components/TablaPartidos'; // Importa el component
 import EditarPartido from '../components/EditarPartido';
 
 import RegisterPage from './RegisterPage';
+import SeleccionarTorneosYCategorias from '../pages/SeleccionarTorneosYCategorias';
 
 
 const AdminDashboard = () => {
@@ -181,9 +182,13 @@ const AdminDashboard = () => {
 
   //------
   const handleAbrirFormulario = (equipo) => {
+    console.log('ID del equipo seleccionado al abrir el formulario:', equipo.equipo_id);  // Accede a 'equipo_id' en vez de 'id'
     setEquipoSeleccionado(equipo);
     setOpenDialog(true);
-  };
+};
+
+
+  
 
   const handleCerrarFormulario = () => {
     setOpenDialog(false);
@@ -193,43 +198,76 @@ const AdminDashboard = () => {
     setJugadorNumeroCamiseta('');
   };
 
+  
+
+
   const handleAgregarJugador = async () => {
+    // Verificamos si los campos están completos
     if (!jugadorNombre || !jugadorEdad || !jugadorPosicion || !jugadorNumeroCamiseta) {
       alert('Por favor complete todos los campos.');
       return;
     }
-
+  
+    console.log('Equipo seleccionado:', equipoSeleccionado);  // Verifica el equipo seleccionado
+  
+    // Verificar si el equipo seleccionado tiene un id válido
+    if (!equipoSeleccionado || !equipoSeleccionado.equipo_id) {
+      alert('Por favor selecciona un equipo.');
+      return;
+    }
+  
     try {
+      // Crear el objeto newJugador
       const newJugador = {
         nombre: jugadorNombre,
         edad: jugadorEdad,
         posicion: jugadorPosicion,
         numero_camiseta: jugadorNumeroCamiseta,
-        equipo_id: equipoSeleccionado.equipo_id,
+        equipo_id: equipoSeleccionado.equipo_id,  // Asegúrate de que equipo_id esté definido
       };
-
-      await axios.post('http://localhost:5000/api/jugadores', newJugador);
+  
+      // Log para verificar los datos del jugador antes de enviarlos
+      console.log('Datos del nuevo jugador:', newJugador);
+  
+      // Realizar la solicitud POST al backend
+      const response = await axios.post('http://localhost:5000/api/jugadores', newJugador);
+      console.log('Respuesta del backend al agregar jugador:', response.data);
+  
+      // Cerrar el formulario después de agregar al jugador
       handleCerrarFormulario();
-
-      const response = await axios.get('http://localhost:5000/api/equipos/detalles');
-      setEquipos(response.data);
+  
+      // Obtener la lista actualizada de equipos
+      const equiposResponse = await axios.get('http://localhost:5000/api/equipos/detalles');
+      setEquipos(equiposResponse.data);
+  
     } catch (error) {
       console.error('Error al agregar jugador:', error);
     }
   };
   
+  
+  
 
   const handleVerJugadores = async (equipoId) => {
+    console.log('ID del equipo seleccionado al intentar ver jugadores:', equipoId);  // Verifica que el equipoId se pase correctamente
     try {
       const response = await axios.get('http://localhost:5000/api/jugadores');
+      console.log('Respuesta de jugadores:', response.data);
       const jugadoresEquipo = response.data.filter(jugador => jugador.equipo_id === equipoId);
-      setJugadores(jugadoresEquipo);
-      setEquipoSeleccionado(equipos.find(equipo => equipo.equipo_id === equipoId));  // Seteamos el equipo seleccionado
+      console.log('Jugadores filtrados:', jugadoresEquipo);
       
+      if (jugadoresEquipo.length === 0) {
+        console.log('No se encontraron jugadores para este equipo');
+      }
+  
+      setJugadores(jugadoresEquipo);  // Actualiza el estado con los jugadores
     } catch (error) {
       console.error('Error al obtener los jugadores:', error);
     }
   };
+  
+  
+  
 
   //------Actualizar jugador
 
@@ -431,8 +469,8 @@ const AdminDashboard = () => {
             <ListItemText primary="Estadísticas" />
           </ListItem>
           <Divider />
-          <ListItem button onClick={() => handleSectionChange('Torneos')}>
-            <ListItemText primary="Torneos" />
+          <ListItem button onClick={() => handleSectionChange('Disciplinas')}>
+            <ListItemText primary="Disciplinas" />
           </ListItem>
           <Divider />
           <ListItem button onClick={() => handleSectionChange('Equipos')}>
@@ -447,6 +485,11 @@ const AdminDashboard = () => {
       <ListItem button onClick={() => handleSectionChange('RegistrarUsuarios')}>
         <ListItemText primary="Registrar Usuarios" />
       </ListItem>
+      <Divider />
+      {/* Botón adicional para registrar usuarios */}
+      <ListItem button onClick={() => handleSectionChange('CategoriasTorneos')}>
+        <ListItemText primary="Categorias y Disciplinas" />
+      </ListItem>
         </List>
         
       </Box>
@@ -455,11 +498,11 @@ const AdminDashboard = () => {
       <Box sx={{ flex: 1, padding: '20px' }}>
         {activeSection === 'Estadísticas' && (
           <Box>
-            <Typography variant="h4" gutterBottom>Torneos y Tabla de Posiciones</Typography>
+            <Typography variant="h4" gutterBottom>Tabla de Posiciones</Typography>
 
         {/* Mostrar la lista de torneos */}
         <Box sx={{ marginBottom: '20px' }}>
-          <Typography variant="h6">Selecciona un torneo:</Typography>
+          <Typography variant="h6">Selecciona una Disciplina:</Typography>
           {torneos.map((torneo) => (
             <Button
               key={torneo.id}
@@ -486,11 +529,11 @@ const AdminDashboard = () => {
                   </Box>
                 )}
 
-                {activeSection === 'Torneos' && (
+                {activeSection === 'Disciplinas' && (
                   <Box>
-                    <Typography variant="h4" gutterBottom>Gestión de Torneos</Typography>
+                    <Typography variant="h4" gutterBottom>Gestión de Disciplinas</Typography>
                     <Button variant="contained" color="primary" onClick={() => setOpenCreateModal(true)}>
-                      Crear Nuevo Torneo
+                      Crear Nueva Disciplina
                     </Button>
                     <Grid container spacing={3}>
                       {torneos.map((torneo) => (
@@ -502,7 +545,9 @@ const AdminDashboard = () => {
                               <Typography variant="body2"><strong>Fecha de Inicio:</strong> {new Date(torneo.fecha_inicio).toLocaleDateString()}</Typography>
                               <Typography variant="body2"><strong>Fecha de Fin:</strong> {new Date(torneo.fecha_fin).toLocaleDateString()}</Typography>
                               <Typography variant="body2"><strong>Lugar:</strong> {torneo.lugar}</Typography>
+                              <Typography variant="body2"><strong>Categorias:</strong> {torneo.categorias}</Typography>
                               <Typography variant="body2"><strong>Estado:</strong> {torneo.estado}</Typography>
+                              
                               <Button
                                 variant="outlined"
                                 color="primary"
@@ -626,6 +671,7 @@ const AdminDashboard = () => {
         </Box>
         )}
         {activeSection === 'RegistrarUsuarios' && <RegisterPage />}
+        {activeSection === 'CategoriasTorneos' && <SeleccionarTorneosYCategorias />}
               </Box>
 
 
