@@ -182,7 +182,6 @@ const CrearPartido = ({ open, onClose, onCreate }) => {
         ))}
     </Select>
 </FormControl>
-
     
           <TextField
             fullWidth

@@ -1,211 +1,216 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Box, Typography, Button, Modal, TextField, MenuItem, Select, FormControl, InputLabel 
-} from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Button, Checkbox, FormControlLabel, TextField } from '@mui/material';
 
-const CrearPartido = ({ open, onClose, onCreate }) => {
-    const [partidos, setPartidos] = useState([]);
-    const [equipos, setEquipos] = useState([]);
-    const [torneos, setTorneos] = useState([]);
-    const [equiposFiltrados, setEquiposFiltrados] = useState([]);
-  
-    const [nuevoPartido, setNuevoPartido] = useState({
-      torneo_id: '',
-      equipo_local_id: '',
-      equipo_visitante_id: '',
-      fecha_hora: '',
-      lugar: '',
-      estado: 'programado',
-      goles_local: null,
-      goles_visitante: null,
-      arbitro: '',
+const TestPage = () => {
+  const [categorias, setCategorias] = useState([]);
+  const [torneosFiltrados, setTorneosFiltrados] = useState([]);
+  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState([]);
+  const [torneosSeleccionados, setTorneosSeleccionados] = useState([]);
+  const [formData, setFormData] = useState({
+    nombreEquipo: '',
+    email: '',
+  });
+  const [open, setOpen] = useState(false); // Estado para controlar la apertura del dialog
+
+  // Cargar categorías y torneos
+  useEffect(() => {
+    const fetchCategorias = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/categorias/categorias-torneos');
+        console.log('Datos recibidos desde el backend (categorías y torneos):', response.data);
+
+        const categoriasConTorneos = response.data.reduce((acc, item) => {
+          const categoriaExistente = acc.find((cat) => cat.categoria_id === item.categoria_id);
+          if (categoriaExistente) {
+            categoriaExistente.torneos.push({
+              torneo_id: item.torneo_id,
+              torneo_nombre: item.torneo_nombre,
+              categoria_nombre: item.categoria_nombre,
+            });
+          } else {
+            acc.push({
+              categoria_id: item.categoria_id,
+              categoria_nombre: item.categoria_nombre,
+              torneos: [
+                {
+                  torneo_id: item.torneo_id,
+                  torneo_nombre: item.torneo_nombre,
+                  categoria_nombre: item.categoria_nombre,
+                },
+              ],
+            });
+          }
+          return acc;
+        }, []);
+
+        setCategorias(categoriasConTorneos);
+      } catch (error) {
+        console.error('Error al cargar las categorías:', error);
+      }
+    };
+
+    fetchCategorias();
+  }, []);
+
+  // Manejar cambios en el formulario
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
     });
+  };
 
-    // Cargar datos iniciales
-    useEffect(() => {
-      console.log('[INFO] Cargando datos iniciales...');
-      
-      axios.get('http://localhost:5000/api/partidos')
-        .then((response) => {
-          console.log('[DATA] Partidos obtenidos:', response.data);
-          setPartidos(response.data);
-        })
-        .catch((error) => {
-          console.error('[ERROR] Error al obtener los partidos:', error);
-        });
-
-      axios.get('http://localhost:5000/api/equipos/categorias')
-        .then((response) => {
-          console.log('[DATA] Equipos obtenidos:', response.data);
-          setEquipos(response.data);
-        })
-        .catch((error) => {
-          console.error('[ERROR] Error al obtener los equipos:', error);
-        });
-  
-      axios.get('http://localhost:5000/api/torneos')
-        .then((response) => {
-          console.log('[DATA] Torneos obtenidos:', response.data);
-          setTorneos(response.data);
-        })
-        .catch((error) => {
-          console.error('[ERROR] Error al obtener los torneos:', error);
-        });
-    }, []);
-
-    // Manejar selección de torneo
-    const handleTorneoChange = (torneoId) => {
-      console.log('[EVENT] Torneo seleccionado:', torneoId);
-      
-      // Actualizar estado del partido
-      setNuevoPartido((prev) => ({ ...prev, torneo_id: torneoId }));
-      
-      // Buscar el torneo seleccionado
-      const torneoSeleccionado = torneos.find((torneo) => torneo.id === parseInt(torneoId));
-      console.log('[DATA] Torneo seleccionado:', torneoSeleccionado);
-
-      const nombreTorneo = torneoSeleccionado?.nombre || '';
-      console.log('[INFO] Filtrando equipos para el torneo:', nombreTorneo);
-
-      // Filtrar equipos asociados al torneo
-      const equiposEnTorneo = equipos.filter((equipo) => equipo.torneo_nombre === nombreTorneo);
-      console.log('[DATA] Equipos filtrados:', equiposEnTorneo);
-
-      setEquiposFiltrados(equiposEnTorneo);
-    };
-
-    // Manejar creación del partido
-    const handleAddPartido = () => {
-      console.log('[INFO] Datos del nuevo partido:', nuevoPartido);
-      
-      axios.post('http://localhost:5000/api/partidos', nuevoPartido)
-        .then((response) => {
-          console.log('[SUCCESS] Partido creado:', response.data);
-          setPartidos([...partidos, response.data]);
-          onCreate(response.data);
-          onClose();
-          // Resetear formulario
-          setNuevoPartido({
-            torneo_id: '',
-            equipo_local_id: '',
-            equipo_visitante_id: '',
-            fecha_hora: '',
-            lugar: '',
-            estado: 'programado',
-            goles_local: null,
-            goles_visitante: null,
-            arbitro: '',
-          });
-        })
-        .catch((error) => {
-          console.error('[ERROR] Error al agregar el partido:', error);
-        });
-    };
-
-    return (
-      <Modal open={open} onClose={onClose}>
-        <Box 
-          sx={{
-            position: 'absolute', 
-            top: '50%', 
-            left: '50%', 
-            transform: 'translate(-50%, -50%)',
-            width: 400,
-            bgcolor: 'background.paper',
-            p: 4,
-            borderRadius: 2,
-          }}
-        >
-          <Typography variant="h6" gutterBottom>
-            Nuevo Partido
-          </Typography>
-
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Disciplina</InputLabel>
-            <Select
-              value={nuevoPartido.torneo_id}
-              onChange={(e) => handleTorneoChange(e.target.value)}
-            >
-              {torneos.map((torneo) => (
-                <MenuItem key={torneo.id} value={torneo.id}>
-                  {torneo.nombre}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
-          <FormControl fullWidth margin="normal" disabled={!equiposFiltrados.length}>
-  <InputLabel>Equipo Local</InputLabel>
-  <Select
-    value={nuevoPartido.equipo_local_id}
-    onChange={(e) => {
-      const equipoSeleccionado = equiposFiltrados.find((equipo) => equipo.equipo_id === parseInt(e.target.value));
-      console.log('[INFO] Equipo Local seleccionado:', equipoSeleccionado);
-      setNuevoPartido((prev) => ({ ...prev, equipo_local_id: e.target.value }));
-    }}
-  >
-    {equiposFiltrados.map((equipo) => (
-      <MenuItem key={equipo.equipo_id} value={equipo.equipo_id}>
-        {equipo.equipo_nombre} - {equipo.categoria_nombre}
-      </MenuItem>
-    ))}
-  </Select>
-</FormControl>
-
-<FormControl fullWidth margin="normal" disabled={!equiposFiltrados.length}>
-  <InputLabel>Equipo Visitante</InputLabel>
-  <Select
-    value={nuevoPartido.equipo_visitante_id}
-    onChange={(e) => {
-      const equipoSeleccionado = equiposFiltrados.find((equipo) => equipo.equipo_id === parseInt(e.target.value));
-      console.log('[INFO] Equipo Visitante seleccionado:', equipoSeleccionado);
-      setNuevoPartido((prev) => ({ ...prev, equipo_visitante_id: e.target.value }));
-    }}
-  >
-    {equiposFiltrados.map((equipo) => (
-      <MenuItem key={equipo.equipo_id} value={equipo.equipo_id}>
-        {equipo.equipo_nombre} - {equipo.categoria_nombre}
-      </MenuItem>
-    ))}
-  </Select>
-</FormControl>
-
-
-          <TextField
-            fullWidth
-            label="Fecha y Hora"
-            type="datetime-local"
-            value={nuevoPartido.fecha_hora}
-            onChange={(e) => setNuevoPartido((prev) => ({ ...prev, fecha_hora: e.target.value }))}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Lugar"
-            value={nuevoPartido.lugar}
-            onChange={(e) => setNuevoPartido((prev) => ({ ...prev, lugar: e.target.value }))}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Árbitro"
-            value={nuevoPartido.arbitro}
-            onChange={(e) => setNuevoPartido((prev) => ({ ...prev, arbitro: e.target.value }))}
-            margin="normal"
-          />
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={handleAddPartido}
-            fullWidth
-            sx={{ marginTop: 2 }}
-          >
-            Guardar
-          </Button>
-        </Box>
-      </Modal>
+  // Manejar selección de categorías
+  const handleCategoriaChange = (e) => {
+    const categoriaId = e.target.value;
+    setCategoriasSeleccionadas((prev) =>
+      prev.includes(categoriaId)
+        ? prev.filter((item) => item !== categoriaId)
+        : [...prev, categoriaId]
     );
+  };
+
+  // Manejar la actualización de los torneos filtrados
+  useEffect(() => {
+    const torneosDeCategoriasSeleccionadas = categorias
+      .filter((cat) => categoriasSeleccionadas.includes(cat.categoria_id.toString()))
+      .flatMap((cat) => cat.torneos);
+
+    setTorneosFiltrados(torneosDeCategoriasSeleccionadas);
+  }, [categoriasSeleccionadas, categorias]);
+
+  // Manejar selección de torneos
+  const handleTorneoChange = (e) => {
+    const torneoId = e.target.value;
+    setTorneosSeleccionados((prev) =>
+      prev.includes(torneoId)
+        ? prev.filter((item) => item !== torneoId)
+        : [...prev, torneoId]
+    );
+  };
+
+  // Manejar el envío del formulario
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Preparar datos para enviar
+    const equiposData = {
+      nombre: formData.nombreEquipo,
+      email_capitan: formData.email,
+      torneos: torneosSeleccionados.map((torneoId) => {
+        return categorias
+          .filter((cat) => categoriasSeleccionadas.includes(cat.categoria_id.toString()))
+          .flatMap((cat) => {
+            return cat.torneos
+              .filter((torneo) => torneo.torneo_id.toString() === torneoId)
+              .map((torneo) => ({
+                torneo_id: torneo.torneo_id,
+                categoria_id: cat.categoria_id,
+              }));
+          });
+      }).flat(),
+    };
+
+    try {
+      const response = await axios.post('http://localhost:5000/api/equipos', equiposData);
+      console.log('Equipo agregado con éxito:', response.data);
+      setOpen(false); // Cerrar el dialog después de enviar el formulario
+    } catch (error) {
+      console.error('Error al agregar el equipo:', error);
+    }
+  };
+
+  // Manejar la apertura y cierre del diálogo
+  const handleClickOpen = () => {
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <Button variant="outlined" onClick={handleClickOpen}>
+        Agregar Equipo
+      </Button>
+
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>Agregar Equipo</DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit}>
+            <TextField
+              label="Nombre del Equipo"
+              name="nombreEquipo"
+              value={formData.nombreEquipo}
+              onChange={handleInputChange}
+              fullWidth
+              margin="normal"
+              required
+            />
+            <TextField
+              label="Email del Capitán"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              type="email"
+              fullWidth
+              margin="normal"
+              required
+            />
+
+            <div>
+              <h4>Categorías</h4>
+              {categorias.map((cat) => (
+                <FormControlLabel
+                  key={cat.categoria_id}
+                  control={
+                    <Checkbox
+                      value={cat.categoria_id}
+                      onChange={handleCategoriaChange}
+                      checked={categoriasSeleccionadas.includes(cat.categoria_id.toString())}
+                    />
+                  }
+                  label={cat.categoria_nombre}
+                />
+              ))}
+            </div>
+
+            <div>
+              <h4>Torneos</h4>
+              {torneosFiltrados.length > 0 ? (
+                torneosFiltrados.map((torneo) => (
+                  <FormControlLabel
+                    key={torneo.torneo_id}
+                    control={
+                      <Checkbox
+                        value={torneo.torneo_id}
+                        onChange={handleTorneoChange}
+                        checked={torneosSeleccionados.includes(torneo.torneo_id.toString())}
+                      />
+                    }
+                    label={`${torneo.torneo_nombre} - ${torneo.categoria_nombre}`}
+                  />
+                ))
+              ) : (
+                <p>No hay torneos disponibles para las categorías seleccionadas.</p>
+              )}
+            </div>
+          </form>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="secondary">
+            Cancelar
+          </Button>
+          <Button type="submit" onClick={handleSubmit} color="primary">
+            Agregar Equipo
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
 };
 
-export default CrearPartido;
+export default TestPage;
